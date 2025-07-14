@@ -1,24 +1,29 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import List
 import numpy as np
 from langchain.embeddings import HuggingFaceEmbeddings
+from strings import MINILM_MODEL_NAME
+from typing import List
 
 app = FastAPI()
 
 # Load model once when the app starts
-embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+embedding_model = HuggingFaceEmbeddings(model_name=MINILM_MODEL_NAME)
 
 # Request body schema
 class SentenceInput(BaseModel):
     sentences: List[str]
 
+    @validator("sentences")
+    def check_exactly_three_sentences(cls, v):
+        if len(v) != 3:
+            raise ValueError("Exactly 3 sentences are required.")
+        return v
+
 @app.post("/similarity/")
 async def compute_similarity(data: SentenceInput):
     try:
-        if len(data.sentences) != 3:
-            raise HTTPException(status_code=400, detail="Exactly 3 sentences are required.")
-
         # Generate embeddings
         embeddings = embedding_model.embed_documents(data.sentences)
         vec1, vec2, vec3 = embeddings
